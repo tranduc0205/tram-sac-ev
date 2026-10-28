@@ -1,3 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạm Sạc Xe Điện Thông Minh EV</title>
+    <!-- Firebase App & Database SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 450px; background: white; margin: 0 auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #333; margin-bottom: 20px; }
+        .btn-group { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .btn { padding: 12px 20px; font-weight: bold; border: 2px solid #007bff; background: white; color: #007bff; border-radius: 8px; cursor: pointer; transition: 0.3s; flex: 1; margin: 0 5px; }
+        .btn.active { background: #007bff; color: white; }
+        .btn-time { padding: 10px 15px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; margin: 3px; }
+        .btn-time.active { background: #28a745; color: white; border-color: #28a745; }
+        #qr-section { margin-top: 25px; display: none; padding: 15px; border-top: 1px solid #eee; }
+        #img-qr { width: 230px; height: 230px; border: 1px solid #ddd; border-radius: 8px; padding: 5px; }
+        .summary { margin-top: 10px; font-weight: bold; color: #d9534f; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔌 TRẠM SẠC XE ĐIỆN EV</h2>
+
+    <p><strong>1. Chọn cổng sạc:</strong></p>
+    <div class="btn-group">
+        <button id="btn-p1" class="btn" onclick="selectPort(1)">🔌 CỔNG 1</button>
+        <button id="btn-p2" class="btn" onclick="selectPort(2)">🔌 CỔNG 2</button>
+    </div>
+
+    <p><strong>2. Chọn thời gian sạc:</strong></p>
+    <div>
+        <button id="btn-t1" class="btn-time" onclick="selectTime(1)">1 Giờ (10k)</button>
+        <button id="btn-t2" class="btn-time" onclick="selectTime(2)">2 Giờ (20k)</button>
+        <button id="btn-t3" class="btn-time" onclick="selectTime(3)">3 Giờ (30k)</button>
+        <button id="btn-t5" class="btn-time" onclick="selectTime(5)">5 Giờ (50k)</button>
+    </div>
+
+    <div id="qr-section">
+        <p class="summary" id="summary-text"></p>
+        <p>Quét mã VietQR để thanh toán:</p>
+        <img id="img-qr" src="" alt="Mã VietQR Thanh Toán">
+        <p style="font-size: 13px; color: #666; margin-top: 8px;">*(Hệ thống sẽ tự động kích hoạt ngay sau khi nhận tiền)*</p>
+    </div>
+</div>
+
 <script>
     // --- 1. CẤU HÌNH FIREBASE DATABASE ---
     const firebaseConfig = {
@@ -14,7 +64,7 @@
 
     let selectedPort = null;
     let selectedHours = null;
-    let portsStatus = { Port1: "OFF", Port2: "OFF" }; // Lưu trạng thái hiện tại
+    let portsStatus = { Port1: "OFF", Port2: "OFF" };
 
     // --- LẮNG NGHE TRẠNG THÁI REALTIME CỦA 2 CỔNG SẠC ---
     database.ref('Port1/status').on('value', (snapshot) => {
@@ -27,18 +77,17 @@
         updatePortUI(2);
     });
 
-    // Cập nhật giao diện nút bấm theo trạng thái Realtime
     function updatePortUI(port) {
         const btn = document.getElementById(`btn-p${port}`);
+        if (!btn) return;
         const status = portsStatus[`Port${port}`];
 
         if (status === "ON") {
-            btn.style.background = "#dc3545"; // Đổi sang màu đỏ
+            btn.style.background = "#dc3545";
             btn.style.borderColor = "#dc3545";
             btn.style.color = "white";
             btn.innerText = `🔌 CỔNG ${port} (ĐANG SẠC...)`;
             
-            // Nếu người dùng đang chọn đúng cổng này thì ẩn phần thanh toán
             if (selectedPort === port) {
                 document.getElementById('qr-section').style.display = 'none';
                 alert(`⚠️ Cổng ${port} hiện đang có xe sạc. Vui lòng chọn cổng khác!`);
@@ -54,7 +103,6 @@
     }
 
     function selectPort(port) {
-        // KIỂM TRA: Nếu cổng đang ON thì KHÔNG CHO CHỌN & KHÔNG TẠO QR
         if (portsStatus[`Port${port}`] === "ON") {
             alert(`⛔ Cổng ${port} đang có xe sạc! Bạn vui lòng chọn cổng còn trống.`);
             return;
@@ -78,7 +126,6 @@
     }
 
     function updateQR() {
-        // Chỉ tạo mã QR khi cổng được chọn đang ở trạng thái OFF
         if (selectedPort !== null && selectedHours !== null) {
             if (portsStatus[`Port${selectedPort}`] === "ON") {
                 document.getElementById('qr-section').style.display = 'none';
@@ -120,7 +167,6 @@
                 database.ref(`${portToEnable}/status`).set('ON');
                 database.ref(`${portToEnable}/remaining_time`).set(durationSeconds);
 
-                // Dọn dẹp rác do SePAY gửi
                 const fieldsToRemove = ['accountNumber', 'accumulated', 'content', 'description', 'gateway', 'id', 'referenceCode', 'transactionDate', 'transferAmount', 'transferType', 'code'];
                 fieldsToRemove.forEach(field => {
                     database.ref(field).remove();
@@ -131,3 +177,5 @@
         }
     });
 </script>
+</body>
+</html>
